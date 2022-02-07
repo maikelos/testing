@@ -1,0 +1,107 @@
+on:
+  workflow_call:
+    inputs:
+      environment:
+        required: true
+        type: environment
+        description: environment
+      version:
+        required: false
+        type: integer
+        description: Leave empty if you want to build
+      dockerfile:
+        required: true
+        type: string
+        description: path to the Dockerfile
+      image_name:
+        required: true
+        type: string
+        description: Name of the built image
+      test_dockerfile:
+        require: false
+        type: string
+        description: Specify if testing is to be run
+      deployments:
+        require: true
+        type: string
+        description: kuberenetes deployments to be made
+
+env:
+  IMAGE_TAG: ${{ github.event.inputs.version || format('1.0.{0}', github.run_number) }}
+  IMAGE_SUBMITTER: ${{ github.event.sender.login }}
+  # Want to make sure we build a test image unique to the repo, host user ID and host user group ID
+  TEST_IMAGE_TAG: ${{ github.event.repository.name }}-build-image-$(id -u)-$(id -g)
+jobs:
+  test:
+    if: ${{inputs.test_dockerfile }}
+    name: Test
+    runs-on: oss2
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+      - name: Prep build environment
+        run: docker image build -f ${{ env.TEST_DOCKERFILE }} -t ${{env.TEST_IMAGE_TAG }} .
+      - name: Run unit tests
+        run: docker run --rm ${{ env.TEST_IMAGE_TAG }} npm run unitTest
+
+  build-image:
+    if: ${{ '!inputs.version' }}
+    needs: [test]
+    name: Build Image
+    runs-on: oss2
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+      - name: Checkout OSS2 GitHub Action Repo
+        uses: actions/checkout@v2
+        with:
+          repository: mmctech/oss2-workflows-mmc-mgti
+          ref: v1.5.4
+          token: ${{ secrets.PAT_GITHUB }}
+          path: .github/actions/oss2
+          fetch-depth: 0
+      - name: Build Image
+        run: docker build -t ${{ inputs.image_name }}:${{ env.IMAGE_TAG }} -f ${{ inputs.dockerfile }} .
+
+  tag-repo:
+    name: Add deployment tag
+    needs: [build-image]
+    runs-on: oss2
+    steps:
+      - name: Create tag - ${{ env.IMAGE_TAG }}
+        uses: actions/github-script@v3
+        with:
+            github-token: ${{ github.token }}
+            script: |
+                github.git.createRef({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  ref: "refs/tags/${{ inputs.image_name }}-${{ env.IMAGE_TAG }}",
+                  sha: context.sha
+                })
+
+  deploy:
+      name: Deploy article-importer cron jobs to ${{ github.event.inputs.environment }}
+      needs: [tag-repo]
+      # This overrides the default "success" condition so that this job runs even if tag-repo was skipped.
+      if: '!cancelled() && !failure()'
+      runs-on: oss2
+      environment: 
+        name: ${{ github.event.inputs.environment }}
+      strategy:
+        matrix:
+          deployment: ${{ fromJSON(inputs.deployments) }}
+      steps:
+        - name: Checkout
+          uses: actions/checkout@v2
+        - name: Import environment variables from a file
+          run: |
+            cat ./deployments/config/${{ github.event.inputs.environment }}-${{ matrix.deployment }}.config >> $GITHUB_ENV   
+        - name: Final test
+          run: |
+              printenv
+  

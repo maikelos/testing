@@ -1,0 +1,27 @@
+name: Data imp Build and Deploy
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        type: environment
+        description: Select the environment
+      version:
+        description: Version (leave blank to build new version)
+      deploy-article-importer:
+        type: boolean
+        description: Deploy article-importer
+      deploy-data-importer:
+        type: boolean
+        description: Deploy data-importer
+      deploy-webapp:
+        type: boolean
+        description: Deploy webapp
+
+jobs:
+  all-here:
+    uses: ./.github/workflows/build-and-deploy-template.yml
+    with:
+      environment: ${{ github.event.inputs.environment }}
+      dockerfile: deployments/docker/Dockerfile-webapp
+      image_name: marshmarketplace-webapp
+      deployments: webapp
