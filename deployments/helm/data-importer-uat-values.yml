@@ -1,0 +1,21 @@
+replicaCount: 0
+image:
+  repository: marshmarketplace-data-importer
+  tag: $IMAGE_TAG
+
+podLabels: 
+  app-id: marshmarketplace
+
+networking:
+  ports:
+    - name: http
+      servicePort: 80
+      containerPort: 9004
+      protocol: TCP
+  ingressEnabled: false
+
+env:
+  VAULT_URL: "https://mgti-dal-so-vlt.mrshmc.com/v1/auth/kubernetes-mgti-app-non-prod-dallas-2/login"
+  VAULT_ROLE_NAME: "data-importer-secrets-reader"
+  VAULT_NAMESPACE: $APP_NAMESPACE
+  SECRETS_URL: "https://mgti-dal-so-vlt.mrshmc.com/v1/kv-mmp/data/config"

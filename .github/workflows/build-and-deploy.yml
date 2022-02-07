@@ -1,0 +1,290 @@
+name: Data imp Build and Deploy
+on:
+  push:
+    branches: [ master ]
+  workflow_dispatch:
+    inputs:
+      environment:
+        type: environment
+        description: Select the environment
+      version:
+        description: Version (leave blank to build new version)
+      deploy-article-importer:
+        type: boolean
+        description: Deploy article-importer
+      deploy-data-importer:
+        type: boolean
+        description: Deploy data-importer
+      deploy-webapp:
+        type: boolean
+        description: Deploy webapp
+
+env:
+  IMAGE_TAG: ${{ github.event.inputs.version || format('1.0.{0}', github.run_number) }}
+  WEBAPP_DOCKERFILE: ./deployments/docker/Dockerfile-webapp
+  DATA_IMP_DOCKERFILE: ./deployments/docker/Dockerfile-data-importer
+  ARTICLE_IMP_DOCKERFILE: ./deployments/docker/Dockerfile-article-importer
+  WEBAPP_IMAGE_NAME: marshmarketplace-webapp
+  DATA_IMP_IMAGE_NAME: marshmarketplace-data-importer
+  ARTICLE_IMP_IMAGE_NAME: marshmarketplace-article-importer
+
+  IMAGE_SUBMITTER: ${{ github.event.sender.login }}
+  # Want to make sure we build a test image unique to the repo, host user ID and host user group ID
+  TEST_IMAGE_TAG: ${{ github.event.repository.name }}-build-image-$(id -u)-$(id -g)
+  TEST_DOCKERFILE: ./deployments/docker/Dockerfile-webapp-dev
+jobs:
+  test-webapp:
+    if: ${{ github.event.inputs.deploy-webapp == 'true' }}
+    name: Test
+    runs-on: oss2
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+      - name: Prep build environment
+        run: docker image build -f ${{ env.TEST_DOCKERFILE }} -t ${{env.TEST_IMAGE_TAG }} .
+      - name: Run unit tests
+        run: docker run --rm ${{ env.TEST_IMAGE_TAG }} npm run unitTest
+
+  build-webapp:
+    if: ${{ '!github.event.inputs.version' && github.event.inputs.deploy-webapp == 'true' }}
+    needs: [test-webapp]
+    name: Build webapp
+    runs-on: oss2
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+      - name: Checkout OSS2 GitHub Action Repo
+        uses: actions/checkout@v2
+        with:
+          repository: mmctech/oss2-workflows-mmc-mgti
+          ref: v1.5.4
+          token: ${{ secrets.PAT_GITHUB }}
+          path: .github/actions/oss2
+          fetch-depth: 0
+      - name: Build Image
+        run: docker build -t ${{ env.WEBAPP_IMAGE_NAME }}:${{ env.IMAGE_TAG }} -f ${{ env.WEBAPP_DOCKERFILE }} .
+      - name: Scan Image
+        uses: ./.github/actions/oss2/scan-image
+        with:
+          oss2api-key: ${{ secrets.OSS2API_SCAN_KEY }}
+          image-repo: ${{ env.WEBAPP_IMAGE_NAME }}
+          image-tag: ${{ env.IMAGE_TAG }}
+          image-submitter: ${{ env.IMAGE_SUBMITTER }}
+          repo-user: ${{ secrets.JFROG_SUBMISSION_REPO_USER }}
+          repo-pass: ${{ secrets.JFROG_SUBMISSION_REPO_PASSWORD }}
+      - name: Upload Image Report
+        uses: actions/upload-artifact@v2
+        with:
+          name: scan_report_webapp
+          # This variable is set by the Scan Image task
+          path: ${{env.SCAN_REPORT_PATH}}
+
+
+  build-data-importer:
+      if: ${{ '!github.event.inputs.version' && github.event.inputs.deploy-data-importer == 'true' }}
+      name: Build data-importer
+      runs-on: oss2
+      steps:
+        - name: Checkout
+          uses: actions/checkout@v2
+          with:
+            fetch-depth: 0
+        - name: Checkout OSS2 GitHub Action Repo
+          uses: actions/checkout@v2
+          with:
+            repository: mmctech/oss2-workflows-mmc-mgti
+            ref: v1.5.4
+            token: ${{ secrets.PAT_GITHUB }}
+            path: .github/actions/oss2
+            fetch-depth: 0
+        - name: Build Image
+          run: docker build -t ${{ env.DATA_IMP_IMAGE_NAME }}:${{ env.IMAGE_TAG }} -f ${{ env.DATA_IMP_DOCKERFILE }} .
+        - name: Scan Image
+          uses: ./.github/actions/oss2/scan-image
+          with:
+            oss2api-key: ${{ secrets.OSS2API_SCAN_KEY }}
+            image-repo: ${{ env.DATA_IMP_IMAGE_NAME }}
+            image-tag: ${{ env.IMAGE_TAG }}
+            image-submitter: ${{ env.IMAGE_SUBMITTER }}
+            repo-user: ${{ secrets.JFROG_SUBMISSION_REPO_USER }}
+            repo-pass: ${{ secrets.JFROG_SUBMISSION_REPO_PASSWORD }}
+        - name: Upload Image Report
+          uses: actions/upload-artifact@v2
+          with:
+            name: scan_report_data_importer
+            # This variable is set by the Scan Image task
+            path: ${{env.SCAN_REPORT_PATH}}
+
+
+  build-article-importer:
+      if: ${{ '!github.event.inputs.version' && github.event.inputs.deploy-article-importer == 'true' }}
+      name: Build article-importer
+      runs-on: oss2
+      steps:
+        - name: Checkout
+          uses: actions/checkout@v2
+          with:
+            fetch-depth: 0
+        - name: Checkout OSS2 GitHub Action Repo
+          uses: actions/checkout@v2
+          with:
+            repository: mmctech/oss2-workflows-mmc-mgti
+            ref: v1.5.4
+            token: ${{ secrets.PAT_GITHUB }}
+            path: .github/actions/oss2
+            fetch-depth: 0
+        - name: Build Image
+          run: docker build -t ${{ env.ARTICLE_IMP_IMAGE_NAME }}:${{ env.IMAGE_TAG }} -f ${{ env.ARTICLE_IMP_DOCKERFILE }} .
+        - name: Scan Image
+          uses: ./.github/actions/oss2/scan-image
+          with:
+            oss2api-key: ${{ secrets.OSS2API_SCAN_KEY }}
+            image-repo: ${{ env.ARTICLE_IMP_IMAGE_NAME }}
+            image-tag: ${{ env.IMAGE_TAG }}
+            image-submitter: ${{ env.IMAGE_SUBMITTER }}
+            repo-user: ${{ secrets.JFROG_SUBMISSION_REPO_USER }}
+            repo-pass: ${{ secrets.JFROG_SUBMISSION_REPO_PASSWORD }}
+        - name: Upload Image Report
+          uses: actions/upload-artifact@v2
+          with:
+            name: scan_report_article_importer
+            # This variable is set by the Scan Image task
+            path: ${{env.SCAN_REPORT_PATH}}
+
+  tag-repo:
+    name: Add deployment tag
+    needs: [build-article-importer, build-data-importer, build-webapp]
+    if:
+        # Only tag the repo when deploying a newly built version of main or uat to the pre-prod or uat environment.
+        ${{ !github.event.inputs.version && (
+            (github.event.inputs.environment == 'pre-prod' && github.ref_name == 'master') || 
+            (github.event.inputs.environment == 'uat' && github.ref_name == 'uat')
+          )}}
+    runs-on: oss2
+    steps:
+        - name: 'Get Previous tag'
+          id: previoustag
+          uses: "WyriHaximus/github-action-get-previous-tag@v1"
+          with:
+            fallback: 1.0.0 # Optional fallback tag to use when no tag can be found
+        - name: 'Generate new tag'
+          run: |
+            WEBAPP_TAG=$(if [ ${{ github.event.inputs.deploy-webapp }} == "true" ]; then echo "${{ env.IMAGE_TAG }}"; else echo "${{ steps.previoustag.outputs.tag }}" | cut -d'.' -f1; fi )
+            ARTICLE_IMP_TAG=$(if [ ${{ github.event.inputs.deploy-article-importer }} == "true" ]; then echo "${{ env.IMAGE_TAG }}"; else echo "${{ steps.previoustag.outputs.tag }}" | cut -d'.' -f2; fi )
+            DATA_IMP_TAG=$(if [ ${{ github.event.inputs.deploy-data-importer }} == "true" ]; then echo "${{ env.IMAGE_TAG }}"; else echo "${{ steps.previoustag.outputs.tag }}" | cut -d'.' -f3; fi )
+
+            COMBINED_TAG="WEBAPP_TAG.ARTICLE_IMP_TAG.DATA_IMP_TAG"          
+
+        - name: Create tag - ${{ env.IMAGE_TAG }}
+          uses: actions/github-script@v3
+          with:
+              github-token: ${{ github.token }}
+              script: |
+                  github.git.createRef({
+                    owner: context.repo.owner,
+                    repo: context.repo.repo,
+                    ref: "refs/tags/${{ env.IMAGE_TAG }}",
+                    sha: context.sha
+                  })
+
+  deploy-webapp:
+    name: Deploy webapp
+    needs: [tag-repo]
+    # This overrides the default "success" condition so that this job runs even if tag-repo was skipped.
+    if: '!cancelled() && !failure()'
+    runs-on: oss2
+    environment: 
+      name: ${{ github.event.inputs.environment }}
+      url: ${{ format('https://{0}', env.DEPLOY_HOSTNAME )}}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+      - name: Import environment variables from a file
+        run: |
+            cat ./deployments/config/${{ github.event.inputs.environment }}-webapp.config >> $GITHUB_ENV        
+      - name: Checkout OSS2 GitHub Action Repo
+        uses: actions/checkout@v2
+        with:
+          repository: mmctech/oss2-workflows-mmc-mgti
+          ref: v1.5.4
+          token: ${{ secrets.PAT_GITHUB }}
+          path: .github/actions/oss2
+      - name: Deploy
+        uses: ./.github/actions/oss2/deploy-app
+        with:
+          oss2api-key: ${{ secrets.OSS2API_DEPLOYMENTKEY }}
+          chart-name: ${{ env.CHART_NAME }}
+          chart-version: ${{ env.CHART_VERSION }}
+          namespace: ${{ env.APP_NAMESPACE}}
+          release-name: ${{ env.RELEASENAME}}
+          values-file: ${{ env.VALUES_FILE}}
+
+  deploy-data-importer:
+      name: Deploy data-importer
+      needs: [tag-repo]
+      # This overrides the default "success" condition so that this job runs even if tag-repo was skipped.
+      if: '!cancelled() && !failure()'
+      runs-on: oss2
+      environment: 
+        name: ${{ github.event.inputs.environment }}
+      steps:
+        - name: Checkout
+          uses: actions/checkout@v2
+        - name: Import environment variables from a file
+          run: |
+            cat ./deployments/config/${{ github.event.inputs.environment }}-data-imp.config >> $GITHUB_ENV   
+        - name: Checkout OSS2 GitHub Action Repo
+          uses: actions/checkout@v2
+          with:
+            repository: mmctech/oss2-workflows-mmc-mgti
+            ref: v1.5.4
+            token: ${{ secrets.PAT_GITHUB }}
+            path: .github/actions/oss2
+        - name: Deploy
+          uses: ./.github/actions/oss2/deploy-app
+          with:
+            oss2api-key: ${{ secrets.OSS2API_DEPLOYMENTKEY }}
+            chart-name: ${{ env.CHART_NAME }}
+            chart-version: ${{ env.CHART_VERSION }}
+            namespace: ${{ env.APP_NAMESPACE}}
+            release-name: ${{ env.RELEASENAME}}
+            values-file: ${{ env.VALUES_FILE}}
+
+  deploy-article-importer-jobs:
+      name: Deploy article-importer cron jobs to ${{ github.event.inputs.environment }}
+      needs: [tag-repo]
+      # This overrides the default "success" condition so that this job runs even if tag-repo was skipped.
+      if: '!cancelled() && !failure()'
+      runs-on: oss2
+      environment: 
+        name: ${{ github.event.inputs.environment }}
+      strategy:
+        matrix:
+          job-name: ["rssImporter", "newsImporter"]
+      steps:
+        - name: Checkout
+          uses: actions/checkout@v2
+        - name: Import environment variables from a file
+          run: |
+            cat ./deployments/config/${{ github.event.inputs.environment }}-article-imp-${{ matrix.job-name }}.config >> $GITHUB_ENV   
+        - name: Checkout OSS2 GitHub Action Repo
+          uses: actions/checkout@v2
+          with:
+            repository: mmctech/oss2-workflows-mmc-mgti
+            ref: v1.5.4
+            token: ${{ secrets.PAT_GITHUB }}
+            path: .github/actions/oss2
+        - name: Deploy
+          uses: ./.github/actions/oss2/deploy-app
+          with:
+            oss2api-key: ${{ secrets.OSS2API_DEPLOYMENTKEY }}
+            chart-name: ${{ env.CHART_NAME }}
+            chart-version: ${{ env.CHART_VERSION }}
+            namespace: ${{ env.APP_NAMESPACE}}
+            release-name: ${{ env.RELEASENAME }}
+            values-file: ${{ env.VALUES_FILE}}
+  

@@ -1,0 +1,38 @@
+{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "type": "pwa-node",
+            "request": "launch",
+            "name": "Debug MMP webapp",
+            "skipFiles": [
+                "<node_internals>/**"
+            ],
+            "env": {
+                "NODE_ENV" : "local"
+            },
+            "program": "${workspaceFolder}\\webapp\\server\\app.js"
+        },
+        {
+            "type": "pwa-node",
+            "request": "launch",
+            "name": "Debug MMP data-importer tests",
+            "skipFiles": [
+                "<node_internals>/**"
+            ],
+            "env": {
+                "NODE_ENV" : "local",
+                "INCOMING_FOLDER" : "${workspaceFolder}\\data-importer\\test\\TEMP\\incoming",
+                "PROCESSING_FOLDER" : "${workspaceFolder}\\data-importer\\test\\TEMP\\processing",
+                "DONE_FOLDER" : "${workspaceFolder}\\data-importer\\test\\TEMP\\done",
+                "TEST_PLACEMENTS_FILE" : "${workspaceFolder}\\data-importer\\test\\TEMP\\small-test-us.csv"
+            },
+            "cwd" : "${workspaceFolder}\\data-importer",
+            "program": "${workspaceFolder}\\data-importer\\node_modules\\cucumber\\bin\\cucumber.js",
+            "args": [ "--backtrace", "--fail-fast", "--strict", "test"]
+        }
+    ]
+}

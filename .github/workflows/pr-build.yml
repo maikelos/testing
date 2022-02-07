@@ -1,0 +1,45 @@
+name: PR build
+on:
+  workflow_dispatch:
+  pull_request:
+    # Run the action when a pull request is opened, updated or reopened (after having been closed).
+    # This runs for pull requests going into any branch.
+    types: [opened, synchronize, reopened]
+env:
+  # Want to make sure we build an image unique to the repo, host user ID and host user group ID
+  DOCKER_BUILD_IMAGE_TAG: ${{ github.event.repository.name }}-build-image-$(id -u)-$(id -g)
+  WEBAPP_DOCKERFILE: ./deployments/docker/Dockerfile-webapp-dev
+  DATA_IMP_DOCKERFILE: ./deployments/docker/Dockerfile-data-importer-dev
+  ARTICLE_IMP_DOCKERFILE: ./deployments/docker/Dockerfile-article-importer-dev
+  # References to BUILD_CMD were breaking when the below was made multiline
+  BUILD_CMD: docker run --rm ${{ github.event.repository.name }}-build-image-$(id -u)-$(id -g)
+jobs:
+  build-and-test-webapp:
+    runs-on: oss2
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+      - name: Prep build environment
+        run: docker image build -f ${{ env.WEBAPP_DOCKERFILE }} -t ${{env.DOCKER_BUILD_IMAGE_TAG }} .
+      - name: Run unit tests
+        run: ${{ env.BUILD_CMD }} npm run unitTest
+  build-data-importer:
+    runs-on: oss2
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+      - name: Prep build environment
+        run: docker image build -f ${{ env.DATA_IMP_DOCKERFILE }} -t ${{env.DOCKER_BUILD_IMAGE_TAG }}-data-imp .
+  build-article-importer:
+    runs-on: oss2
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+      - name: Prep build environment
+        run: docker image build -f ${{ env.ARTICLE_IMP_DOCKERFILE }} -t ${{env.DOCKER_BUILD_IMAGE_TAG }}-article-imp .

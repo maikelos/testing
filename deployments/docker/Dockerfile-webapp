@@ -1,0 +1,64 @@
+FROM base-images.mgti-dal-so-art.mrshmc.com/mmc/redhat/ubi8:latest
+# First update the system to the latest levels - important this step is consistent across all RHEL7 Docker Images
+RUN yum -y update  && yum clean all
+
+# Add ZScaler certificate to relevant places to avoid SSL issues.
+RUN echo "Installing ZScaler certificate" \
+    && cp /usr/local/share/ca-certificates/zscaler.com/ZscalerRootCertificate-2048-SHA256.crt /etc/pki/ca-trust/source/anchors/ \
+    && update-ca-trust 
+
+ENV NODE_EXTRA_CA_CERTS=/usr/local/share/ca-certificates/zscaler.com/ZscalerRootCertificate-2048-SHA256.crt
+
+# Run the relevant commands to install any dependent packages and create any users/directories required. Always end with yum clean all to reduce size.
+RUN echo 'INSTALLING NODE and dependencies' \
+    && curl --silent --location https://rpm.nodesource.com/setup_10.x | bash - \
+    && yum -y install nodejs git krb5-devel wget make gcc-c++ nano \
+    && npm install npm@6.14.13 -g \
+    && yum clean all \
+    && echo 'INSTALLING JQ' \
+    && wget --no-check-certificate https://github.com/stedolan/jq/releases/download/jq-1.5/jq-linux64 -O /usr/bin/jq \
+    && chmod +x /usr/bin/jq \
+    && yum clean all
+
+# Add a non-root user
+RUN useradd --system node
+
+# Copy over package lists and install them
+COPY webapp/package.json webapp/package-lock.json /home/node/src/
+
+RUN echo 'INSTALLING PACKAGE DEPENDENCIES' \
+    && git config --global url."https://".insteadOf git:// \
+    && npm install -g node-gyp \
+    && npm install -g bower \
+    && npm install -g grunt-cli \
+    && cd /home/node/src \
+    && npm install 
+
+# Copy over the rest of the application and build it
+COPY webapp/ /home/node/src/
+
+RUN echo 'BUILD THE APPLICATION' \
+    && cd /home/node/src \
+    && bower install --allow-root --force \
+    && grunt buildDeploymentPackage \
+    && mv dist /home/node/dist \
+    && cd /home/node \
+    && rm -rf src \
+    && mv dist src \
+    && npm uninstall -g node-gyp \
+    && npm uninstall -g bower \
+    && npm uninstall -g grunt-cli \
+    && chown -R node /home/node \
+    && chmod +x /home/node/src/entrypoint.sh
+
+RUN echo 'REMOVING BUILD DEPENDENCIES ' \
+    && yum -y remove kernel-headers
+
+# Set the working directory, expose port and set a default user
+USER node
+WORKDIR /home/node/src
+
+ENV PORT 9003
+EXPOSE 9003
+
+CMD ["/bin/sh", "/home/node/src/entrypoint.sh"]

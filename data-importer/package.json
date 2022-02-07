@@ -1,0 +1,30 @@
+{
+  "name": "marketplace-rss-importer",
+  "version": "1.0.0",
+  "description": "",
+  "repository": {
+    "type": "git",
+    "url": "git@bitbucket.org:oliverwymantechssg/marketplace-rss-importer.git"
+  },
+  "private": true,
+  "main": "index.js",
+  "scripts": {
+    "start": "node app.js"
+  },
+  "keywords": [],
+  "author": [],
+  "dependencies": {
+    "bluebird": "^3.4.6",
+    "cron": "^1.2.1",
+    "express": "^4.15.4",
+    "http": "0.0.0",
+    "lodash": "^4.16.4",
+    "moment": "^2.15.1",
+    "node-uuid": "^1.4.7",
+    "nodemailer": "^1.4.0",
+    "request": "^2.81.0",
+    "request-promise": "^4.1.1",
+    "rss-url-parser": "^1.0.0",
+    "winston": "^2.2.0"
+  }
+}

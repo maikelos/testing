@@ -1,0 +1,73 @@
+FROM base-images.mgti-dal-so-art.mrshmc.com/mmc/redhat/ubi8:latest
+# First update the system to the latest levels - important this step is consistent across all RHEL7 Docker Images
+RUN yum -y update  && yum clean all
+
+# Add ZScaler certificate to relevant places to avoid SSL issues.
+RUN echo "Installing ZScaler certificate" \
+    && cp /usr/local/share/ca-certificates/zscaler.com/ZscalerRootCertificate-2048-SHA256.crt /etc/pki/ca-trust/source/anchors/ \
+    && update-ca-trust 
+
+ENV NODE_EXTRA_CA_CERTS=/usr/local/share/ca-certificates/zscaler.com/ZscalerRootCertificate-2048-SHA256.crt
+
+# Run the relevant commands to install any dependent packages and create any users/directories required. Always end with yum clean all to reduce size.
+RUN echo 'INSTALLING NODE and dependencies' \
+    && curl --silent --location https://rpm.nodesource.com/setup_10.x | bash - \
+    && yum -y install nodejs git krb5-devel wget make gcc-c++ sudo nano \
+    && npm install npm@6.14.13 -g \
+    && yum clean all \
+    && echo 'INSTALLING JQ' \
+    && wget --no-check-certificate https://github.com/stedolan/jq/releases/download/jq-1.5/jq-linux64 -O /usr/bin/jq \
+    && chmod +x /usr/bin/jq \
+    && yum clean all
+
+# DO NOT COPY THIS TO PRODUCTION DOCKERFILE
+# Adding root user to a docker image is usefull for dev purposes
+# but is bad practice for production environment
+# To use it in the container type "sudo su" and then "node" as pass
+RUN useradd --system node && echo "node:node" | chpasswd 
+RUN usermod -aG wheel node 
+
+
+# Copy over package lists and install them
+COPY webapp/package.json webapp/package-lock.json /home/node/src/
+
+RUN echo 'INSTALLING NPM DEPENDENCIES' \
+    && echo "## Running git config --global url.https://.insteadOf git://" \
+    && git config --global url."https://".insteadOf git:// \
+    && echo "## Running npm install -g node-gyp" \
+    && npm install -g node-gyp \
+    && echo "## Running npm install -g bower" \
+    && npm install -g bower \
+    && echo "## Running npm install -g grunt-cli" \
+    && npm install -g grunt-cli \
+    && echo "## Running cd /home/node/src" \
+    && cd /home/node/src \
+    && echo "## Running npm install" \
+    && npm install 
+
+# Copy over the rest of the application and build it
+COPY webapp/ /home/node/src
+
+RUN echo 'BUILDING APPLICATION' \
+    && cd /home/node/src \
+    && echo "## Running bower install --allow-root --force" \
+    && bower install --allow-root --force \
+    && echo "## Running grunt buildDeploymentPackage" \
+    && grunt buildDeploymentPackage \
+    && echo "## Running mv dist /home/node/dist" \
+    && mv dist /home/node/dist \
+    && echo "## Running chown -R node /home/node" \
+    && chown -R node /home/node \
+    && echo "## Running chmod +x /home/node/src/entrypoint.sh" \
+    && chmod +x /home/node/src/entrypoint.sh
+
+# Set the working directory, and the default user
+USER node
+WORKDIR /home/node/src
+
+ENV MINIFY true
+ENV NODE_ENV local
+ENV PORT 9003
+EXPOSE 9003
+
+CMD node server/app.js

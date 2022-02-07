@@ -1,0 +1,24 @@
+image:
+  repo: marshmarketplace-article-importer
+  tag: $IMAGE_TAG
+
+jobspec:
+  schedule: 0 8,10,12,16,18,22 * * *
+  backoffLimit: 3
+  completions: 1
+  parallelism: 1
+
+resources:
+  requests:
+    cpu: 0.5
+    memory: 128Mi
+  limits:
+    cpu: 1
+    memory: 512Mi
+env:
+  VAULT_URL: "https://mgti-dal-so-vlt.mrshmc.com/v1/auth/kubernetes-mgti-app-non-prod-dallas-2/login"
+  VAULT_ROLE_NAME: "article-importer-secrets-reader"
+  VAULT_NAMESPACE: $APP_NAMESPACE
+  SECRETS_URL: "https://mgti-dal-so-vlt.mrshmc.com/v1/kv-mmp/data/config"
+  JOB_NAME: $JOB_NAME
+  NODE_ENV: "dev"

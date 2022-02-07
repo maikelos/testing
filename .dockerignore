@@ -1,0 +1,12 @@
+# Common ignores
+*/node_modules
+test_folder
+**/Dockerfile
+docker-compose*
+.git*
+.vscode
+deployments
+README.md
+
+# Webapp
+webapp/client/bower_components

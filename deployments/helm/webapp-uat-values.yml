@@ -1,0 +1,32 @@
+# Values.yml file for mercer-app Helm Chart for dev deployments
+# The $ENV variables are configured in and injected by deployment pipeline
+
+replicaCount: 1
+image:
+  repository: marshmarketplace-webapp
+  tag: $IMAGE_TAG
+
+podLabels: 
+  allow-ingress: true
+  app-id: marshmarketplace
+
+networking:
+  ports:
+  - name: http
+    servicePort: 80
+    containerPort: 9003
+  ingressEnabled: true
+  ingressServicePort: 80
+  ingresses: 
+  - name: default
+    rules: 
+    - hostname: $DEPLOY_HOSTNAME
+      tlsCertificateSecret: $DEPLOY_HOSTNAME
+    annotations:
+      cert-manager.io/cluster-issuer: "oss2-ci-0-acme-sectigo"
+
+env:
+  VAULT_URL: "https://mgti-dal-so-vlt.mrshmc.com/v1/auth/kubernetes-mgti-app-non-prod-dallas-2/login"
+  VAULT_ROLE_NAME: "webapp-secrets-reader"
+  VAULT_NAMESPACE: $APP_NAMESPACE
+  SECRETS_URL: "https://mgti-dal-so-vlt.mrshmc.com/v1/kv-mmp/data/config"
