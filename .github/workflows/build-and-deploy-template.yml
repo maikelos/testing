@@ -93,8 +93,7 @@ jobs:
       environment: 
         name: ${{ github.event.inputs.environment }}
       strategy:
-        matrix:
-          deployment: ${{ fromJSON(inputs.deployments) }}
+        matrix: ${{ fromJSON(inputs.deployments) }}
       steps:
         - name: Checkout
           uses: actions/checkout@v2
