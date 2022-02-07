@@ -18,7 +18,7 @@ on:
         type: string
         description: Name of the built image
       test_dockerfile:
-        required: false
+        required: true
         type: string
         description: Specify if testing is to be run
       deployments:
@@ -42,9 +42,7 @@ jobs:
         with:
           fetch-depth: 0
       - name: Prep build environment
-        run: docker image build -f ${{ env.TEST_DOCKERFILE }} -t ${{env.TEST_IMAGE_TAG }} .
-      - name: Run unit tests
-        run: docker run --rm ${{ env.TEST_IMAGE_TAG }} npm run unitTest
+        run: echo ${{ inputs.test_dockerfile }} 
 
   build-image:
     if: ${{ '!inputs.version' }}
