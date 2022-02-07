@@ -7,7 +7,7 @@ on:
         description: environment
       version:
         required: false
-        type: integer
+        type: string
         description: Leave empty if you want to build
       dockerfile:
         required: true
