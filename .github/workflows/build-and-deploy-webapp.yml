@@ -7,15 +7,6 @@ on:
         description: Select the environment
       version:
         description: Version (leave blank to build new version)
-      deploy-article-importer:
-        type: boolean
-        description: Deploy article-importer
-      deploy-data-importer:
-        type: boolean
-        description: Deploy data-importer
-      deploy-webapp:
-        type: boolean
-        description: Deploy webapp
 
 jobs:
   all-here:

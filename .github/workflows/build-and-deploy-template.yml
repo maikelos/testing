@@ -3,7 +3,7 @@ on:
     inputs:
       environment:
         required: true
-        type: environment
+        type: string
         description: environment
       version:
         required: false
