@@ -1,4 +1,4 @@
-name: article Build and Deploy
+name: Article Build and Deploy
 on:
   push:
     branches: [ master ]

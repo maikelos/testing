@@ -1,4 +1,4 @@
-name: Webapp Build and Deploy
+name: Data imp Build and Deploy
 on:
   push:
     branches: [ master ]

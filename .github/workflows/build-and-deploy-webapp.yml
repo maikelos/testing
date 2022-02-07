@@ -1,4 +1,4 @@
-name: Data imp Build and Deploy
+name: Webapp Build and Deploy
 on:
   workflow_dispatch:
     inputs:
