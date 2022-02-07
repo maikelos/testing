@@ -18,11 +18,11 @@ on:
         type: string
         description: Name of the built image
       test_dockerfile:
-        require: false
+        required: false
         type: string
         description: Specify if testing is to be run
       deployments:
-        require: true
+        required: true
         type: string
         description: kuberenetes deployments to be made
 
