@@ -16,3 +16,4 @@ jobs:
       dockerfile: deployments/docker/Dockerfile-webapp
       image_name: marshmarketplace-webapp
       deployments:  '{"include":[{"deployment":"webapp"}]}'
+      test_dockerfile: "test_dockerfile"
