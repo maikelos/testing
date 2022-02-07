@@ -15,4 +15,4 @@ jobs:
       environment: ${{ github.event.inputs.environment }}
       dockerfile: deployments/docker/Dockerfile-webapp
       image_name: marshmarketplace-webapp
-      deployments: webapp
+      deployments:  '{"include":["webapp"]}'
